@@ -61,9 +61,15 @@ const ArticleCard = ({ article, isAdmin, onApprove, onReject }: ArticleCardProps
             </Button>
           </div>
         ) : (
-          <Link to={`/blog/${article.id}`} className="inline-block">
-            <Button variant="outline" size="sm">Read More</Button>
-          </Link>
+          article.status === 'approved' ? (
+            <Link to={`/blog/${article.id}`} className="inline-block">
+              <Button variant="outline" size="sm">Read More</Button>
+            </Link>
+          ) : (
+            <Button variant="outline" size="sm" disabled>
+              {article.status === 'rejected' ? 'Rejected' : 'Pending Approval'}
+            </Button>
+          )
         )}
         {article.tags && article.tags.length > 0 && (
           <div className="flex flex-wrap gap-1">

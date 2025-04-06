@@ -55,7 +55,7 @@ const AdminDashboard = () => {
       const allArticles = getStoredArticles();
       const updatedArticles = allArticles.map(article => 
         article.id === articleId 
-          ? { ...article, status: 'approved', updatedAt: new Date() } 
+          ? { ...article, status: 'approved' as const, updatedAt: new Date() } 
           : article
       );
       
@@ -81,7 +81,7 @@ const AdminDashboard = () => {
       const allArticles = getStoredArticles();
       const updatedArticles = allArticles.map(article => 
         article.id === articleId 
-          ? { ...article, status: 'rejected', updatedAt: new Date() } 
+          ? { ...article, status: 'rejected' as const, updatedAt: new Date() } 
           : article
       );
       
