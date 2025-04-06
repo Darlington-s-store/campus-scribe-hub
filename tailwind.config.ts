@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,13 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				campus: {
+					primary: '#1E40AF', // deep blue
+					secondary: '#3B82F6', // medium blue
+					accent: '#8B5CF6', // purple accent
+					light: '#EFF6FF', // light blue background
+					dark: '#1E293B', // dark text color
 				}
 			},
 			borderRadius: {
@@ -89,7 +97,11 @@ export default {
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out'
-			}
+			},
+			fontFamily: {
+				merriweather: ['Merriweather', 'serif'],
+				inter: ['Inter', 'sans-serif'],
+			},
 		}
 	},
 	plugins: [require("tailwindcss-animate")],
