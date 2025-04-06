@@ -102,7 +102,17 @@ export default {
 				merriweather: ['Merriweather', 'serif'],
 				inter: ['Inter', 'sans-serif'],
 			},
+			typography: {
+				DEFAULT: {
+					css: {
+						maxWidth: 'none',
+					},
+				},
+			},
 		}
 	},
-	plugins: [require("tailwindcss-animate")],
+	plugins: [
+		require("tailwindcss-animate"),
+		require("@tailwindcss/typography"),
+	],
 } satisfies Config;
