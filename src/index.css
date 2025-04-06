@@ -102,5 +102,5 @@
 }
 
 .article-content {
-  @apply prose prose-slate max-w-none;
+  @apply prose-sm md:prose-base lg:prose-lg prose-slate max-w-none;
 }

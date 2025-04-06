@@ -1,9 +1,9 @@
 
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import NavBar from '@/components/NavBar';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import AdminSidebar from '@/components/AdminSidebar';
 import ArticleCard from '@/components/ArticleCard';
-import { getStoredArticles, saveArticles } from '@/data/articles';
+import { getStoredArticles, saveArticles, getStoredUsers } from '@/data/articles';
 import { Article, User } from '@/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
@@ -11,8 +11,13 @@ import { useToast } from '@/components/ui/use-toast';
 const AdminDashboard = () => {
   const [user, setUser] = useState<User | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  
+  // Get the active tab from URL or default to "pending"
+  const activeTab = searchParams.get('tab') || 'pending';
 
   useEffect(() => {
     // Check if user is logged in and is admin
@@ -38,10 +43,20 @@ const AdminDashboard = () => {
         setArticles(allArticles);
       };
 
+      // Get all users
+      const fetchUsers = () => {
+        const allUsers = getStoredUsers();
+        setUsers(allUsers);
+      };
+
       fetchArticles();
+      fetchUsers();
       
       // Set up interval to check for updates
-      const interval = setInterval(fetchArticles, 3000);
+      const interval = setInterval(() => {
+        fetchArticles();
+        fetchUsers();
+      }, 3000);
       
       return () => clearInterval(interval);
     } catch (error) {
@@ -108,123 +123,181 @@ const AdminDashboard = () => {
   const rejectedArticles = articles.filter(article => article.status === 'rejected');
 
   if (!user) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="animate-pulse text-xl">Loading...</div>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <NavBar />
+    <div className="flex h-screen bg-gray-100">
+      <AdminSidebar />
       
-      <main className="flex-grow bg-gray-50">
-        <div className="container mx-auto px-4 py-12">
-          <h1 className="text-3xl font-bold text-campus-dark mb-8">
+      <main className="flex-1 overflow-auto p-8">
+        <div className="mx-auto max-w-7xl">
+          <h1 className="text-3xl font-bold text-gray-900 mb-8">
             Admin Dashboard
           </h1>
           
-          <div className="bg-white p-6 rounded-lg shadow-sm mb-8">
-            <h2 className="text-xl font-semibold mb-4">Welcome, Admin!</h2>
-            <p className="text-gray-700">
-              This is the administrative dashboard where you can review and manage all articles submitted by students.
-            </p>
-          </div>
-          
           <div className="grid grid-cols-3 gap-6 mb-8">
-            <div className="bg-blue-50 p-6 rounded-lg border border-blue-100">
-              <h3 className="text-lg font-semibold text-blue-700 mb-2">Pending Review</h3>
-              <p className="text-3xl font-bold text-blue-800">{pendingArticles.length}</p>
+            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+              <div className="flex items-center">
+                <div className="p-3 rounded-full bg-blue-100 text-blue-600 mr-4">
+                  <FileText className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-700">Pending Review</h3>
+                  <p className="text-3xl font-bold text-blue-600">{pendingArticles.length}</p>
+                </div>
+              </div>
             </div>
             
-            <div className="bg-green-50 p-6 rounded-lg border border-green-100">
-              <h3 className="text-lg font-semibold text-green-700 mb-2">Approved</h3>
-              <p className="text-3xl font-bold text-green-800">{approvedArticles.length}</p>
+            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+              <div className="flex items-center">
+                <div className="p-3 rounded-full bg-green-100 text-green-600 mr-4">
+                  <FileText className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-700">Approved</h3>
+                  <p className="text-3xl font-bold text-green-600">{approvedArticles.length}</p>
+                </div>
+              </div>
             </div>
             
-            <div className="bg-red-50 p-6 rounded-lg border border-red-100">
-              <h3 className="text-lg font-semibold text-red-700 mb-2">Rejected</h3>
-              <p className="text-3xl font-bold text-red-800">{rejectedArticles.length}</p>
+            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+              <div className="flex items-center">
+                <div className="p-3 rounded-full bg-red-100 text-red-600 mr-4">
+                  <FileText className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-700">Rejected</h3>
+                  <p className="text-3xl font-bold text-red-600">{rejectedArticles.length}</p>
+                </div>
+              </div>
             </div>
           </div>
           
-          <Tabs defaultValue="pending" className="w-full">
-            <TabsList className="mb-6">
-              <TabsTrigger value="pending">Pending Review ({pendingArticles.length})</TabsTrigger>
-              <TabsTrigger value="approved">Approved ({approvedArticles.length})</TabsTrigger>
-              <TabsTrigger value="rejected">Rejected ({rejectedArticles.length})</TabsTrigger>
-              <TabsTrigger value="all">All Articles ({articles.length})</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="pending">
-              {pendingArticles.length > 0 ? (
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {pendingArticles.map(article => (
-                    <ArticleCard 
-                      key={article.id} 
-                      article={article} 
-                      isAdmin={true}
-                      onApprove={handleApproveArticle}
-                      onReject={handleRejectArticle}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-16">
-                  <p className="text-gray-600">There are no articles pending review.</p>
-                </div>
-              )}
-            </TabsContent>
-            
-            <TabsContent value="approved">
-              {approvedArticles.length > 0 ? (
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {approvedArticles.map(article => (
-                    <ArticleCard key={article.id} article={article} />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-16">
-                  <p className="text-gray-600">There are no approved articles yet.</p>
-                </div>
-              )}
-            </TabsContent>
-            
-            <TabsContent value="rejected">
-              {rejectedArticles.length > 0 ? (
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {rejectedArticles.map(article => (
-                    <ArticleCard key={article.id} article={article} />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-16">
-                  <p className="text-gray-600">There are no rejected articles.</p>
-                </div>
-              )}
-            </TabsContent>
-            
-            <TabsContent value="all">
-              {articles.length > 0 ? (
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {articles.map(article => (
-                    <ArticleCard key={article.id} article={article} />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-16">
-                  <p className="text-gray-600">There are no articles in the system yet.</p>
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+            <Tabs defaultValue={activeTab} onValueChange={(value) => setSearchParams({ tab: value })}>
+              <TabsList className="border-b border-gray-200 p-4">
+                <TabsTrigger value="pending">Pending Review ({pendingArticles.length})</TabsTrigger>
+                <TabsTrigger value="approved">Approved ({approvedArticles.length})</TabsTrigger>
+                <TabsTrigger value="rejected">Rejected ({rejectedArticles.length})</TabsTrigger>
+                <TabsTrigger value="all">All Articles ({articles.length})</TabsTrigger>
+                <TabsTrigger value="users">Users ({users.length})</TabsTrigger>
+                <TabsTrigger value="settings">Settings</TabsTrigger>
+              </TabsList>
+              
+              <div className="p-6">
+                <TabsContent value="pending">
+                  {pendingArticles.length > 0 ? (
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {pendingArticles.map(article => (
+                        <ArticleCard 
+                          key={article.id} 
+                          article={article} 
+                          isAdmin={true}
+                          onApprove={handleApproveArticle}
+                          onReject={handleRejectArticle}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-16">
+                      <p className="text-gray-600">There are no articles pending review.</p>
+                    </div>
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="approved">
+                  {approvedArticles.length > 0 ? (
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {approvedArticles.map(article => (
+                        <ArticleCard key={article.id} article={article} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-16">
+                      <p className="text-gray-600">There are no approved articles yet.</p>
+                    </div>
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="rejected">
+                  {rejectedArticles.length > 0 ? (
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {rejectedArticles.map(article => (
+                        <ArticleCard key={article.id} article={article} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-16">
+                      <p className="text-gray-600">There are no rejected articles.</p>
+                    </div>
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="all">
+                  {articles.length > 0 ? (
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {articles.map(article => (
+                        <ArticleCard key={article.id} article={article} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-16">
+                      <p className="text-gray-600">There are no articles in the system yet.</p>
+                    </div>
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="users">
+                  <div className="rounded-lg border">
+                    <div className="bg-gray-50 px-4 py-3 font-medium text-sm text-gray-700 border-b grid grid-cols-6">
+                      <div className="col-span-2">Name</div>
+                      <div className="col-span-2">Index Number</div>
+                      <div>Role</div>
+                      <div>Joined</div>
+                    </div>
+                    <div className="divide-y">
+                      {users.map(user => (
+                        <div key={user.id} className="px-4 py-3 grid grid-cols-6 items-center text-sm">
+                          <div className="col-span-2 font-medium">{user.name}</div>
+                          <div className="col-span-2">{user.indexNumber || 'N/A'}</div>
+                          <div className="capitalize">{user.role}</div>
+                          <div>{new Date(user.createdAt).toLocaleDateString()}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="settings">
+                  <div className="max-w-2xl mx-auto">
+                    <h3 className="font-semibold text-lg mb-4">Admin Settings</h3>
+                    <div className="space-y-6">
+                      <div className="bg-blue-50 border border-blue-200 rounded-md p-4 text-sm text-blue-800">
+                        This is a demo version of the admin panel. In a production environment, you would be able to configure various settings here.
+                      </div>
+                      
+                      <div className="grid gap-4">
+                        <div className="bg-white rounded-md border border-gray-200 p-4">
+                          <h4 className="font-medium mb-2">Admin Credentials</h4>
+                          <div className="text-sm text-gray-500">
+                            <p>Email: admin@campus.edu</p>
+                            <p>Password: admin123</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+              </div>
+            </Tabs>
+          </div>
         </div>
       </main>
-
-      <footer className="bg-gray-100 py-8">
-        <div className="container mx-auto px-4 text-center">
-          <p className="text-gray-600">
-            © {new Date().getFullYear()} Campus Scribe Hub. All rights reserved.
-          </p>
-        </div>
-      </footer>
     </div>
   );
 };
