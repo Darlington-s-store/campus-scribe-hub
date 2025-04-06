@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import AdminSidebar from '@/components/AdminSidebar';
@@ -7,6 +6,7 @@ import { getStoredArticles, saveArticles, getStoredUsers } from '@/data/articles
 import { Article, User } from '@/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
+import { FileText } from 'lucide-react';
 
 const AdminDashboard = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -16,11 +16,9 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  // Get the active tab from URL or default to "pending"
   const activeTab = searchParams.get('tab') || 'pending';
 
   useEffect(() => {
-    // Check if user is logged in and is admin
     const userJSON = localStorage.getItem('currentUser');
     if (!userJSON || userJSON === 'null') {
       navigate('/login');
@@ -31,19 +29,16 @@ const AdminDashboard = () => {
       const currentUser = JSON.parse(userJSON) as User;
       setUser(currentUser);
 
-      // If user is not admin, redirect to dashboard
       if (currentUser.role !== 'admin') {
         navigate('/dashboard');
         return;
       }
 
-      // Get all articles
       const fetchArticles = () => {
         const allArticles = getStoredArticles();
         setArticles(allArticles);
       };
 
-      // Get all users
       const fetchUsers = () => {
         const allUsers = getStoredUsers();
         setUsers(allUsers);
@@ -52,7 +47,6 @@ const AdminDashboard = () => {
       fetchArticles();
       fetchUsers();
       
-      // Set up interval to check for updates
       const interval = setInterval(() => {
         fetchArticles();
         fetchUsers();
@@ -117,7 +111,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // Group articles by status
   const pendingArticles = articles.filter(article => article.status === 'pending');
   const approvedArticles = articles.filter(article => article.status === 'approved');
   const rejectedArticles = articles.filter(article => article.status === 'rejected');
