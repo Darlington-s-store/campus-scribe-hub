@@ -11,8 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 const LoginForm = () => {
   const [indexNumber, setIndexNumber] = useState('');
   const [password, setPassword] = useState('');
-  const [email, setEmail] = useState('');
-  const [adminPassword, setAdminPassword] = useState('');
+  const [email, setEmail] = useState('admin@campus.edu'); // Pre-filled for convenience
+  const [adminPassword, setAdminPassword] = useState('admin123'); // Pre-filled for convenience
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -72,7 +72,7 @@ const LoginForm = () => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Admin credentials
+    // Admin credentials - these are hardcoded
     const adminEmail = "admin@campus.edu";
     const correctAdminPassword = "admin123";
 
@@ -94,7 +94,10 @@ const LoginForm = () => {
         description: 'Welcome to the admin dashboard!',
       });
 
-      navigate('/admin-dashboard');
+      // Important: Navigate AFTER setting localStorage
+      setTimeout(() => {
+        navigate('/admin-dashboard');
+      }, 100);
     } else {
       toast({
         title: 'Error',
@@ -107,7 +110,7 @@ const LoginForm = () => {
   };
 
   return (
-    <Tabs defaultValue="student" className="w-full">
+    <Tabs defaultValue="admin" className="w-full">
       <TabsList className="grid w-full grid-cols-2 mb-6">
         <TabsTrigger value="student">Student Login</TabsTrigger>
         <TabsTrigger value="admin">Admin Login</TabsTrigger>
