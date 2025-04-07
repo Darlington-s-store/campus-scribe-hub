@@ -6,32 +6,90 @@ import { getStoredArticles } from '@/data/articles';
 import { Article } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/lib/supabase';
 
 const Blog = () => {
   const [articles, setArticles] = useState<Article[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [allTags, setAllTags] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Get all published articles
-    const fetchArticles = () => {
-      const allArticles = getStoredArticles();
-      const approvedArticles = allArticles.filter(article => article.status === 'approved');
-      setArticles(approvedArticles);
-      
-      // Extract all unique tags
-      const tags = approvedArticles
-        .flatMap(article => article.tags || [])
-        .filter((tag, index, self) => self.indexOf(tag) === index);
-      
-      setAllTags(tags);
+    const fetchArticles = async () => {
+      setLoading(true);
+      try {
+        // Try to fetch from Supabase first
+        const { data: supabaseArticles, error } = await supabase
+          .from('articles')
+          .select('*')
+          .eq('status', 'approved')
+          .order('created_at', { ascending: false });
+        
+        if (!error && supabaseArticles && supabaseArticles.length > 0) {
+          // Convert from Supabase format to our Article type
+          const formattedArticles = supabaseArticles.map(item => ({
+            id: item.id,
+            title: item.title,
+            content: item.content,
+            excerpt: item.excerpt,
+            author: {
+              id: item.author_id,
+              name: item.author_name,
+              indexNumber: item.author_index_number || '',
+              role: item.author_role as 'student' | 'admin',
+              createdAt: new Date(item.author_created_at)
+            },
+            status: item.status as 'pending' | 'approved' | 'rejected',
+            createdAt: new Date(item.created_at),
+            updatedAt: new Date(item.updated_at),
+            tags: item.tags
+          }));
+          
+          setArticles(formattedArticles);
+          
+          // Extract all unique tags
+          const tags = formattedArticles
+            .flatMap(article => article.tags || [])
+            .filter((tag, index, self) => self.indexOf(tag) === index);
+          
+          setAllTags(tags);
+        } else {
+          // Fallback to local storage
+          const localArticles = getStoredArticles();
+          const approvedArticles = localArticles.filter(article => article.status === 'approved');
+          setArticles(approvedArticles);
+          
+          // Extract all unique tags
+          const tags = approvedArticles
+            .flatMap(article => article.tags || [])
+            .filter((tag, index, self) => self.indexOf(tag) === index);
+          
+          setAllTags(tags);
+        }
+      } catch (error) {
+        console.error('Error fetching articles:', error);
+        // Fallback to local storage
+        const localArticles = getStoredArticles();
+        const approvedArticles = localArticles.filter(article => article.status === 'approved');
+        setArticles(approvedArticles);
+        
+        // Extract all unique tags
+        const tags = approvedArticles
+          .flatMap(article => article.tags || [])
+          .filter((tag, index, self) => self.indexOf(tag) === index);
+        
+        setAllTags(tags);
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchArticles();
     
     // Set up interval to check for new articles
-    const interval = setInterval(fetchArticles, 5000);
+    const interval = setInterval(fetchArticles, 30000);
     
     return () => clearInterval(interval);
   }, []);
@@ -100,7 +158,13 @@ const Blog = () => {
           </div>
           
           {/* Articles grid */}
-          {filteredArticles.length > 0 ? (
+          {loading ? (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3, 4, 5, 6].map(i => (
+                <div key={i} className="bg-white rounded-lg border border-gray-200 shadow-sm animate-pulse h-64"></div>
+              ))}
+            </div>
+          ) : filteredArticles.length > 0 ? (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredArticles.map(article => (
                 <ArticleCard key={article.id} article={article} />

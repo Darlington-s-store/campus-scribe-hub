@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useEffect } from "react";
 import { initializeStorage } from "@/data/articles";
+import { initializeSupabaseTables, syncLocalStorageToSupabase } from "@/lib/supabase";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Blog from "./pages/Blog";
@@ -23,7 +24,23 @@ const queryClient = new QueryClient();
 const App = () => {
   // Initialize local storage with mock data when the app loads
   useEffect(() => {
+    // Initialize local storage
     initializeStorage();
+    
+    // Try to initialize Supabase and sync local data
+    const setupSupabase = async () => {
+      try {
+        const success = await initializeSupabaseTables();
+        if (success) {
+          // Sync local storage data to Supabase
+          await syncLocalStorageToSupabase();
+        }
+      } catch (error) {
+        console.error('Error setting up Supabase:', error);
+      }
+    };
+    
+    setupSupabase();
   }, []);
 
   return (

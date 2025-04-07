@@ -1,17 +1,22 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import AdminSidebar from '@/components/AdminSidebar';
-import ArticleCard from '@/components/ArticleCard';
-import { getStoredArticles, saveArticles, getStoredUsers } from '@/data/articles';
+import AdminArticleManager from '@/components/AdminArticleManager';
+import { getStoredArticles, getStoredUsers } from '@/data/articles';
 import { Article, User } from '@/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
-import { FileText } from 'lucide-react';
+import { FileText, Users, Settings, Info } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 const AdminDashboard = () => {
   const [user, setUser] = useState<User | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -34,23 +39,76 @@ const AdminDashboard = () => {
         return;
       }
 
-      const fetchArticles = () => {
-        const allArticles = getStoredArticles();
-        setArticles(allArticles);
+      const fetchData = async () => {
+        // Try to fetch from Supabase first
+        try {
+          const { data: supabaseArticles, error: articlesError } = await supabase
+            .from('articles')
+            .select('*');
+            
+          const { data: supabaseUsers, error: usersError } = await supabase
+            .from('users')
+            .select('*');
+          
+          if (!articlesError && supabaseArticles) {
+            // Convert from Supabase format to our Article type
+            const formattedArticles = supabaseArticles.map(item => ({
+              id: item.id,
+              title: item.title,
+              content: item.content,
+              excerpt: item.excerpt,
+              author: {
+                id: item.author_id,
+                name: item.author_name,
+                indexNumber: item.author_index_number || '',
+                role: item.author_role as 'student' | 'admin',
+                createdAt: new Date(item.author_created_at)
+              },
+              status: item.status as 'pending' | 'approved' | 'rejected',
+              createdAt: new Date(item.created_at),
+              updatedAt: new Date(item.updated_at),
+              tags: item.tags
+            }));
+            
+            setArticles(formattedArticles);
+          } else {
+            // Fallback to local storage
+            const localArticles = getStoredArticles();
+            setArticles(localArticles);
+          }
+          
+          if (!usersError && supabaseUsers) {
+            // Convert from Supabase format to our User type
+            const formattedUsers = supabaseUsers.map(item => ({
+              id: item.id,
+              name: item.name,
+              indexNumber: item.index_number || '',
+              role: item.role as 'student' | 'admin',
+              createdAt: new Date(item.created_at)
+            }));
+            
+            setUsers(formattedUsers);
+          } else {
+            // Fallback to local storage
+            const localUsers = getStoredUsers();
+            setUsers(localUsers);
+          }
+        } catch (error) {
+          console.error('Error fetching from Supabase:', error);
+          // Fallback to local storage
+          const localArticles = getStoredArticles();
+          const localUsers = getStoredUsers();
+          setArticles(localArticles);
+          setUsers(localUsers);
+        }
       };
 
-      const fetchUsers = () => {
-        const allUsers = getStoredUsers();
-        setUsers(allUsers);
-      };
-
-      fetchArticles();
-      fetchUsers();
+      fetchData();
       
+      // Set up polling for updates
       const interval = setInterval(() => {
-        fetchArticles();
-        fetchUsers();
-      }, 3000);
+        fetchData();
+      }, 10000);
       
       return () => clearInterval(interval);
     } catch (error) {
@@ -59,61 +117,35 @@ const AdminDashboard = () => {
     }
   }, [navigate]);
 
-  const handleApproveArticle = (articleId: string) => {
-    try {
-      const allArticles = getStoredArticles();
-      const updatedArticles = allArticles.map(article => 
-        article.id === articleId 
-          ? { ...article, status: 'approved' as const, updatedAt: new Date() } 
-          : article
-      );
-      
-      saveArticles(updatedArticles);
-      setArticles(updatedArticles);
-      
-      toast({
-        title: 'Article Approved',
-        description: 'The article has been approved and is now published.',
-      });
-    } catch (error) {
-      console.error('Error approving article:', error);
-      toast({
-        title: 'Error',
-        description: 'There was an error approving the article. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleRejectArticle = (articleId: string) => {
-    try {
-      const allArticles = getStoredArticles();
-      const updatedArticles = allArticles.map(article => 
-        article.id === articleId 
-          ? { ...article, status: 'rejected' as const, updatedAt: new Date() } 
-          : article
-      );
-      
-      saveArticles(updatedArticles);
-      setArticles(updatedArticles);
-      
-      toast({
-        title: 'Article Rejected',
-        description: 'The article has been rejected.',
-      });
-    } catch (error) {
-      console.error('Error rejecting article:', error);
-      toast({
-        title: 'Error',
-        description: 'There was an error rejecting the article. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  };
-
   const pendingArticles = articles.filter(article => article.status === 'pending');
   const approvedArticles = articles.filter(article => article.status === 'approved');
   const rejectedArticles = articles.filter(article => article.status === 'rejected');
+
+  const handleSyncData = async () => {
+    try {
+      setIsSyncing(true);
+      toast({
+        title: 'Syncing Data',
+        description: 'Synchronizing local data with Supabase...',
+      });
+      
+      await supabase.functions.invoke('sync-data');
+      
+      toast({
+        title: 'Sync Complete',
+        description: 'Data has been synchronized successfully.',
+      });
+    } catch (error) {
+      console.error('Error syncing data:', error);
+      toast({
+        title: 'Sync Failed',
+        description: 'There was an error synchronizing data. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   if (!user) {
     return (
@@ -133,7 +165,7 @@ const AdminDashboard = () => {
             Admin Dashboard
           </h1>
           
-          <div className="grid grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
               <div className="flex items-center">
                 <div className="p-3 rounded-full bg-blue-100 text-blue-600 mr-4">
@@ -152,7 +184,7 @@ const AdminDashboard = () => {
                   <FileText className="h-6 w-6" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-700">Approved</h3>
+                  <h3 className="text-lg font-semibold text-gray-700">Published</h3>
                   <p className="text-3xl font-bold text-green-600">{approvedArticles.length}</p>
                 </div>
               </div>
@@ -175,74 +207,45 @@ const AdminDashboard = () => {
             <Tabs defaultValue={activeTab} onValueChange={(value) => setSearchParams({ tab: value })}>
               <TabsList className="border-b border-gray-200 p-4">
                 <TabsTrigger value="pending">Pending Review ({pendingArticles.length})</TabsTrigger>
-                <TabsTrigger value="approved">Approved ({approvedArticles.length})</TabsTrigger>
+                <TabsTrigger value="approved">Published ({approvedArticles.length})</TabsTrigger>
                 <TabsTrigger value="rejected">Rejected ({rejectedArticles.length})</TabsTrigger>
                 <TabsTrigger value="all">All Articles ({articles.length})</TabsTrigger>
                 <TabsTrigger value="users">Users ({users.length})</TabsTrigger>
+                <TabsTrigger value="database">Database</TabsTrigger>
                 <TabsTrigger value="settings">Settings</TabsTrigger>
               </TabsList>
               
               <div className="p-6">
                 <TabsContent value="pending">
-                  {pendingArticles.length > 0 ? (
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {pendingArticles.map(article => (
-                        <ArticleCard 
-                          key={article.id} 
-                          article={article} 
-                          isAdmin={true}
-                          onApprove={handleApproveArticle}
-                          onReject={handleRejectArticle}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-16">
-                      <p className="text-gray-600">There are no articles pending review.</p>
-                    </div>
-                  )}
+                  <AdminArticleManager 
+                    articles={articles} 
+                    status="pending" 
+                    onArticlesChanged={() => setArticles(getStoredArticles())}
+                  />
                 </TabsContent>
                 
                 <TabsContent value="approved">
-                  {approvedArticles.length > 0 ? (
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {approvedArticles.map(article => (
-                        <ArticleCard key={article.id} article={article} />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-16">
-                      <p className="text-gray-600">There are no approved articles yet.</p>
-                    </div>
-                  )}
+                  <AdminArticleManager 
+                    articles={articles} 
+                    status="approved" 
+                    onArticlesChanged={() => setArticles(getStoredArticles())}
+                  />
                 </TabsContent>
                 
                 <TabsContent value="rejected">
-                  {rejectedArticles.length > 0 ? (
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {rejectedArticles.map(article => (
-                        <ArticleCard key={article.id} article={article} />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-16">
-                      <p className="text-gray-600">There are no rejected articles.</p>
-                    </div>
-                  )}
+                  <AdminArticleManager 
+                    articles={articles} 
+                    status="rejected" 
+                    onArticlesChanged={() => setArticles(getStoredArticles())}
+                  />
                 </TabsContent>
                 
                 <TabsContent value="all">
-                  {articles.length > 0 ? (
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {articles.map(article => (
-                        <ArticleCard key={article.id} article={article} />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-16">
-                      <p className="text-gray-600">There are no articles in the system yet.</p>
-                    </div>
-                  )}
+                  <AdminArticleManager 
+                    articles={articles} 
+                    status="all" 
+                    onArticlesChanged={() => setArticles(getStoredArticles())}
+                  />
                 </TabsContent>
                 
                 <TabsContent value="users">
@@ -262,6 +265,55 @@ const AdminDashboard = () => {
                           <div>{new Date(user.createdAt).toLocaleDateString()}</div>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="database">
+                  <div className="max-w-3xl mx-auto">
+                    <Card className="p-6 mb-6">
+                      <div className="flex items-center mb-4">
+                        <div className="p-3 rounded-full bg-blue-100 text-blue-600 mr-4">
+                          <Info className="h-6 w-6" />
+                        </div>
+                        <h3 className="text-xl font-semibold">Supabase Integration</h3>
+                      </div>
+                      
+                      <p className="mb-4">
+                        Your application is now connected to Supabase for permanent data storage. 
+                        You can manually synchronize data between local storage and Supabase if needed.
+                      </p>
+                      
+                      <Button 
+                        onClick={handleSyncData} 
+                        disabled={isSyncing}
+                        className="mt-2"
+                      >
+                        {isSyncing ? 'Syncing...' : 'Sync Data Now'}
+                      </Button>
+                    </Card>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <Card className="p-6">
+                        <h3 className="font-semibold text-lg mb-4">Database Tables</h3>
+                        <ul className="space-y-2 text-sm">
+                          <li className="flex items-center">
+                            <span className="w-24 font-medium">users</span>
+                            <span className="text-gray-600">{users.length} records</span>
+                          </li>
+                          <li className="flex items-center">
+                            <span className="w-24 font-medium">articles</span>
+                            <span className="text-gray-600">{articles.length} records</span>
+                          </li>
+                        </ul>
+                      </Card>
+                      
+                      <Card className="p-6">
+                        <h3 className="font-semibold text-lg mb-4">Storage</h3>
+                        <p className="text-sm text-gray-600">
+                          You can use Supabase Storage to store images, files, and other assets.
+                        </p>
+                      </Card>
                     </div>
                   </div>
                 </TabsContent>

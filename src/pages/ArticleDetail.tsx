@@ -7,6 +7,7 @@ import { Article } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 const ArticleDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -15,8 +16,53 @@ const ArticleDetail = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchArticle = () => {
+    const fetchArticle = async () => {
+      setLoading(true);
       try {
+        // Try to fetch from Supabase first
+        const { data, error } = await supabase
+          .from('articles')
+          .select('*')
+          .eq('id', id)
+          .eq('status', 'approved')
+          .single();
+        
+        if (!error && data) {
+          // Convert from Supabase format to our Article type
+          const formattedArticle: Article = {
+            id: data.id,
+            title: data.title,
+            content: data.content,
+            excerpt: data.excerpt,
+            author: {
+              id: data.author_id,
+              name: data.author_name,
+              indexNumber: data.author_index_number || '',
+              role: data.author_role as 'student' | 'admin',
+              createdAt: new Date(data.author_created_at)
+            },
+            status: data.status as 'pending' | 'approved' | 'rejected',
+            createdAt: new Date(data.created_at),
+            updatedAt: new Date(data.updated_at),
+            tags: data.tags
+          };
+          
+          setArticle(formattedArticle);
+        } else {
+          // Fallback to local storage
+          const articles = getStoredArticles();
+          const foundArticle = articles.find(article => article.id === id);
+          
+          if (foundArticle && foundArticle.status === 'approved') {
+            setArticle(foundArticle);
+          } else {
+            // Article not found or not approved
+            setArticle(null);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching article:', error);
+        // Fallback to local storage
         const articles = getStoredArticles();
         const foundArticle = articles.find(article => article.id === id);
         
@@ -26,9 +72,6 @@ const ArticleDetail = () => {
           // Article not found or not approved
           setArticle(null);
         }
-      } catch (error) {
-        console.error('Error fetching article:', error);
-        setArticle(null);
       } finally {
         setLoading(false);
       }
@@ -54,7 +97,17 @@ const ArticleDetail = () => {
       <div className="min-h-screen">
         <NavBar />
         <div className="container mx-auto px-4 py-16 text-center">
-          <p className="text-lg">Loading article...</p>
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded mb-4 max-w-lg mx-auto"></div>
+            <div className="h-4 bg-gray-100 rounded mb-12 max-w-md mx-auto"></div>
+            <div className="max-w-3xl mx-auto">
+              <div className="h-4 bg-gray-100 rounded mb-3"></div>
+              <div className="h-4 bg-gray-100 rounded mb-3"></div>
+              <div className="h-4 bg-gray-100 rounded mb-3"></div>
+              <div className="h-4 bg-gray-100 rounded mb-3"></div>
+              <div className="h-4 bg-gray-100 rounded"></div>
+            </div>
+          </div>
         </div>
       </div>
     );
