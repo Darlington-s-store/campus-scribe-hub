@@ -17,6 +17,7 @@ export interface Article {
   createdAt: Date;
   updatedAt: Date;
   tags?: string[];
+  imageUrl?: string;
 }
 
 export interface AuthState {

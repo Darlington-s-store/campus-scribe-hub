@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { getStoredArticles } from '@/data/articles';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 const FeaturedArticles = () => {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -17,7 +17,7 @@ const FeaturedArticles = () => {
       try {
         setLoading(true);
         
-        // Try to fetch from Supabase first
+        // Try to fetch from Supabase
         const { data, error } = await supabase
           .from('articles')
           .select('*')
@@ -25,16 +25,12 @@ const FeaturedArticles = () => {
           .order('created_at', { ascending: false })
           .limit(3);
         
-        if (error || !data || data.length === 0) {
-          // Fallback to local storage if Supabase fails or no articles
-          const localArticles = getStoredArticles();
-          const approvedArticles = localArticles
-            .filter(article => article.status === 'approved')
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-            .slice(0, 3);
-          
-          setArticles(approvedArticles);
-        } else {
+        if (error) {
+          console.error('Error fetching from Supabase:', error);
+          throw error;
+        }
+        
+        if (data && data.length > 0) {
           // Convert from Supabase format to our Article type
           const formattedArticles = data.map(item => ({
             id: item.id,
@@ -51,10 +47,20 @@ const FeaturedArticles = () => {
             status: item.status as 'pending' | 'approved' | 'rejected',
             createdAt: new Date(item.created_at),
             updatedAt: new Date(item.updated_at),
-            tags: item.tags
+            tags: item.tags,
+            imageUrl: item.image_url
           }));
           
           setArticles(formattedArticles);
+        } else {
+          // Fallback to local storage if no articles in Supabase
+          const localArticles = getStoredArticles();
+          const approvedArticles = localArticles
+            .filter(article => article.status === 'approved')
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, 3);
+          
+          setArticles(approvedArticles);
         }
       } catch (error) {
         console.error('Error fetching articles:', error);
@@ -107,6 +113,15 @@ const FeaturedArticles = () => {
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       {articles.map(article => (
         <Card key={article.id} className="flex flex-col h-full hover:shadow-md transition-shadow">
+          {article.imageUrl && (
+            <div className="relative w-full h-40 overflow-hidden">
+              <img 
+                src={article.imageUrl} 
+                alt={article.title}
+                className="w-full h-full object-cover" 
+              />
+            </div>
+          )}
           <CardHeader>
             <CardTitle className="text-xl">{article.title}</CardTitle>
             <CardDescription>

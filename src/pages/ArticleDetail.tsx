@@ -7,7 +7,7 @@ import { Article } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 const ArticleDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -19,7 +19,7 @@ const ArticleDetail = () => {
     const fetchArticle = async () => {
       setLoading(true);
       try {
-        // Try to fetch from Supabase first
+        // Fetch from Supabase
         const { data, error } = await supabase
           .from('articles')
           .select('*')
@@ -27,7 +27,12 @@ const ArticleDetail = () => {
           .eq('status', 'approved')
           .single();
         
-        if (!error && data) {
+        if (error) {
+          console.error('Error fetching from Supabase:', error);
+          throw error;
+        }
+        
+        if (data) {
           // Convert from Supabase format to our Article type
           const formattedArticle: Article = {
             id: data.id,
@@ -44,7 +49,8 @@ const ArticleDetail = () => {
             status: data.status as 'pending' | 'approved' | 'rejected',
             createdAt: new Date(data.created_at),
             updatedAt: new Date(data.updated_at),
-            tags: data.tags
+            tags: data.tags,
+            imageUrl: data.image_url
           };
           
           setArticle(formattedArticle);
@@ -147,6 +153,16 @@ const ArticleDetail = () => {
           </Button>
           
           <article className="bg-white rounded-lg shadow-sm overflow-hidden">
+            {article.imageUrl && (
+              <div className="w-full h-80 overflow-hidden">
+                <img 
+                  src={article.imageUrl} 
+                  alt={article.title} 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+            
             <div className="px-6 pt-6 pb-4 border-b">
               <h1 className="text-3xl font-bold text-campus-dark mb-3">
                 {article.title}

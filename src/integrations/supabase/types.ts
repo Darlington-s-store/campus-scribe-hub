@@ -9,6 +9,54 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      articles: {
+        Row: {
+          author_created_at: string
+          author_id: string
+          author_index_number: string | null
+          author_name: string
+          author_role: string
+          content: string
+          created_at: string
+          excerpt: string
+          id: string
+          status: string
+          tags: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_created_at: string
+          author_id: string
+          author_index_number?: string | null
+          author_name: string
+          author_role: string
+          content: string
+          created_at?: string
+          excerpt: string
+          id?: string
+          status: string
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_created_at?: string
+          author_id?: string
+          author_index_number?: string | null
+          author_name?: string
+          author_role?: string
+          content?: string
+          created_at?: string
+          excerpt?: string
+          id?: string
+          status?: string
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -623,6 +671,39 @@ export type Database = {
         Update: {
           created_at?: string
           id?: number
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          index_number: string | null
+          name: string
+          password_hash: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          index_number?: string | null
+          name: string
+          password_hash: string
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          index_number?: string | null
+          name?: string
+          password_hash?: string
+          role?: string
+          updated_at?: string
         }
         Relationships: []
       }

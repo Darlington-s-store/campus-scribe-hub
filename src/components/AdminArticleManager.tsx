@@ -4,11 +4,10 @@ import { Article } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Pencil, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { Pencil, Trash2, CheckCircle, XCircle, Image } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/lib/supabase';
-import { getStoredArticles, saveArticles } from '@/data/articles';
+import { updateArticleStatus, deleteArticle } from '@/lib/supabase';
 
 interface AdminArticleManagerProps {
   articles: Article[];
@@ -28,29 +27,11 @@ const AdminArticleManager = ({ articles, status, onArticlesChanged }: AdminArtic
     try {
       setProcessing(prev => ({ ...prev, [articleId]: true }));
       
-      // Update in Supabase
-      const { error } = await supabase
-        .from('articles')
-        .update({ 
-          status: newStatus,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', articleId);
+      const success = await updateArticleStatus(articleId, newStatus);
       
-      if (error) {
-        console.error('Supabase update failed:', error);
-        throw new Error('Database update failed');
+      if (!success) {
+        throw new Error('Failed to update article status');
       }
-      
-      // Also update in localStorage as fallback
-      const allArticles = getStoredArticles();
-      const updatedArticles = allArticles.map(article => 
-        article.id === articleId 
-          ? { ...article, status: newStatus, updatedAt: new Date() } 
-          : article
-      );
-      
-      saveArticles(updatedArticles);
       
       toast({
         title: `Article ${newStatus === 'approved' ? 'Approved' : 'Rejected'}`,
@@ -78,22 +59,11 @@ const AdminArticleManager = ({ articles, status, onArticlesChanged }: AdminArtic
     try {
       setProcessing(prev => ({ ...prev, [articleId]: true }));
       
-      // Delete from Supabase
-      const { error } = await supabase
-        .from('articles')
-        .delete()
-        .eq('id', articleId);
+      const success = await deleteArticle(articleId);
       
-      if (error) {
-        console.error('Supabase delete failed:', error);
-        throw new Error('Database delete failed');
+      if (!success) {
+        throw new Error('Failed to delete article');
       }
-      
-      // Also delete from localStorage as fallback
-      const allArticles = getStoredArticles();
-      const updatedArticles = allArticles.filter(article => article.id !== articleId);
-      
-      saveArticles(updatedArticles);
       
       toast({
         title: 'Article Deleted',
@@ -125,7 +95,16 @@ const AdminArticleManager = ({ articles, status, onArticlesChanged }: AdminArtic
     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
       {filteredArticles.map(article => (
         <Card key={article.id} className="h-full flex flex-col">
-          <CardHeader>
+          {article.imageUrl && (
+            <div className="relative w-full h-36 overflow-hidden">
+              <img 
+                src={article.imageUrl} 
+                alt={article.title}
+                className="w-full h-full object-cover" 
+              />
+            </div>
+          )}
+          <CardHeader className={article.imageUrl ? 'pt-3' : ''}>
             <div className="flex justify-between items-start">
               <CardTitle className="text-xl font-bold">{article.title}</CardTitle>
               <Badge 
