@@ -15,6 +15,8 @@ import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import SubmitArticle from "./pages/SubmitArticle";
 import ArticleDetail from "./pages/ArticleDetail";
+import ChatBot from "./components/ChatBot";
+import CookieConsent from "./components/CookieConsent";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +43,9 @@ const App = () => {
             <Route path="/submit-article" element={<SubmitArticle />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          {/* Global components that appear on all pages */}
+          <ChatBot />
+          <CookieConsent />
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

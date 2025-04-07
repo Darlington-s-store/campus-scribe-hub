@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
+import ChatBot from '@/components/ChatBot';
+import Announcements from '@/components/Announcements';
 import { initializeStorage } from '@/data/articles';
 
 const Index = () => {
@@ -43,6 +45,11 @@ const Index = () => {
             </div>
           </div>
         </section>
+        
+        {/* Announcements */}
+        <div className="container mx-auto px-4">
+          <Announcements />
+        </div>
 
         {/* Features section with improved cards */}
         <section className="py-16">
@@ -254,6 +261,9 @@ const Index = () => {
       </main>
 
       <Footer />
+      
+      {/* Add ChatBot component */}
+      <ChatBot />
     </div>
   );
 };
