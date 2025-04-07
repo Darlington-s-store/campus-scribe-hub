@@ -5,27 +5,56 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Create a dummy client if no credentials available
+// Create a mock client that properly chains methods and returns predictable results
+const createMockClient = () => {
+  // Create a function that returns a chainable mock object
+  const createChainableMock = () => {
+    const mockObj: any = {};
+    
+    // Add all the chainable methods
+    const methods = [
+      'select', 'insert', 'update', 'delete', 'eq', 'neq', 'gt', 'lt', 'gte', 'lte',
+      'like', 'ilike', 'is', 'in', 'contains', 'containedBy', 'rangeLt', 'rangeGt',
+      'rangeGte', 'rangeLte', 'rangeAdjacent', 'overlaps', 'textSearch', 'match',
+      'not', 'filter', 'or', 'and', 'limit', 'order', 'range', 'single', 'maybeSingle',
+      'csv', 'geojson', 'explain', 'upsert'
+    ];
+    
+    // Implement each method to return the chainable object
+    methods.forEach(method => {
+      mockObj[method] = (..._args: any[]) => createChainableMock();
+    });
+    
+    // Add data/error properties that get returned at the end of the chain
+    mockObj.data = null;
+    mockObj.error = { message: 'Supabase not configured' };
+    
+    // For Promise-like behavior
+    mockObj.then = (callback: (arg: any) => any) => {
+      return Promise.resolve(callback({ data: null, error: { message: 'Supabase not configured' } }));
+    };
+    
+    return mockObj;
+  };
+  
+  return {
+    from: () => createChainableMock(),
+    auth: {
+      signUp: () => Promise.resolve({ data: null, error: { message: 'Supabase not configured' } }),
+      signIn: () => Promise.resolve({ data: null, error: { message: 'Supabase not configured' } }),
+      signOut: () => Promise.resolve({ error: null }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+    },
+    functions: {
+      invoke: () => Promise.resolve({ data: null, error: { message: 'Supabase not configured' } }),
+    },
+  };
+};
+
+// Create a real client if credentials available, otherwise use the mock
 export const supabase = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey)
-  : {
-      from: () => ({
-        select: () => ({ data: null, error: { message: 'Supabase not configured' } }),
-        insert: () => ({ data: null, error: { message: 'Supabase not configured' } }),
-        update: () => ({ data: null, error: { message: 'Supabase not configured' } }),
-        delete: () => ({ data: null, error: { message: 'Supabase not configured' } }),
-        eq: () => ({ data: null, error: { message: 'Supabase not configured' } }),
-        upsert: () => ({ data: null, error: { message: 'Supabase not configured' } }),
-        limit: () => ({ data: null, error: { message: 'Supabase not configured' } }),
-        order: () => ({ data: null, error: { message: 'Supabase not configured' } }),
-      }),
-      auth: {
-        signUp: () => Promise.resolve({ data: null, error: { message: 'Supabase not configured' } }),
-        signIn: () => Promise.resolve({ data: null, error: { message: 'Supabase not configured' } }),
-        signOut: () => Promise.resolve({ error: null }),
-        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-      },
-    };
+  : createMockClient();
 
 /**
  * Initializes the Supabase tables if they don't exist

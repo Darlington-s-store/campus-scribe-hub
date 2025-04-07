@@ -41,6 +41,7 @@ const App = () => {
         description: "Using local storage for data. Your changes won't persist between sessions.",
         duration: 5000,
       });
+      console.log("Supabase URL and key are missing. Using local storage only.");
       return;
     }
     
