@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { getStoredArticles } from '@/data/articles';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 
 const FeaturedArticles = () => {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -32,7 +32,7 @@ const FeaturedArticles = () => {
         
         if (data && data.length > 0) {
           // Convert from Supabase format to our Article type
-          const formattedArticles = data.map(item => ({
+          const formattedArticles: Article[] = data.map(item => ({
             id: item.id,
             title: item.title,
             content: item.content,

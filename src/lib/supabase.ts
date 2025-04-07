@@ -1,8 +1,10 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { Article, User } from '@/types';
 import { getStoredArticles, getStoredUsers, saveArticles } from '@/data/articles';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase as supabaseClient } from '@/integrations/supabase/client';
+
+// Export the supabase client for use in other files
+export const supabase = supabaseClient;
 
 /**
  * Initializes the Supabase tables if they don't exist
