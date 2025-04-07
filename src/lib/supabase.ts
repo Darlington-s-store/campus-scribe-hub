@@ -1,43 +1,71 @@
 
 import { createClient } from '@supabase/supabase-js';
 
+// Get environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase credentials are missing. Some features might not work correctly.');
-}
-
-export const supabase = createClient(
-  supabaseUrl || '',
-  supabaseAnonKey || ''
-);
+// Create a dummy client if no credentials available
+export const supabase = supabaseUrl && supabaseAnonKey
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : {
+      from: () => ({
+        select: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+        insert: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+        update: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+        delete: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+        eq: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+        upsert: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+        limit: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+        order: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+      }),
+      auth: {
+        signUp: () => Promise.resolve({ data: null, error: { message: 'Supabase not configured' } }),
+        signIn: () => Promise.resolve({ data: null, error: { message: 'Supabase not configured' } }),
+        signOut: () => Promise.resolve({ error: null }),
+        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+      },
+    };
 
 /**
  * Initializes the Supabase tables if they don't exist
  */
 export const initializeSupabaseTables = async () => {
-  // Check if tables exist first
-  const { data: tables, error } = await supabase
-    .from('articles')
-    .select('id')
-    .limit(1);
-    
-  if (error && error.code === '42P01') {
-    console.log('Tables not found, initializing...');
-    try {
-      // Create tables and seed data
-      await setupTables();
-      await seedData();
-      console.log('Supabase tables initialized successfully');
-      return true;
-    } catch (err) {
-      console.error('Error initializing Supabase tables:', err);
+  // If Supabase is not configured, return false
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.warn('Supabase credentials are missing. Using local storage only.');
+    return false;
+  }
+  
+  try {
+    // Check if tables exist first
+    const { data: tables, error } = await supabase
+      .from('articles')
+      .select('id')
+      .limit(1);
+      
+    if (error && error.code === '42P01') {
+      console.log('Tables not found, initializing...');
+      try {
+        // Create tables and seed data
+        await setupTables();
+        await seedData();
+        console.log('Supabase tables initialized successfully');
+        return true;
+      } catch (err) {
+        console.error('Error initializing Supabase tables:', err);
+        return false;
+      }
+    } else if (error) {
+      console.error('Error checking Supabase tables:', error);
       return false;
+    } else {
+      console.log('Supabase tables already exist');
+      return true;
     }
-  } else {
-    console.log('Supabase tables already exist');
-    return true;
+  } catch (err) {
+    console.error('Error connecting to Supabase:', err);
+    return false;
   }
 };
 
@@ -104,6 +132,11 @@ const seedData = async () => {
 };
 
 export const syncLocalStorageToSupabase = async () => {
+  // If Supabase is not configured, skip sync
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return;
+  }
+  
   try {
     const localArticles = JSON.parse(localStorage.getItem('articles') || '[]');
     const localUsers = JSON.parse(localStorage.getItem('users') || '[]');
